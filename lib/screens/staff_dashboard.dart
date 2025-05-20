@@ -11,28 +11,36 @@ class StaffDashboard extends StatefulWidget {
   _StaffDashboardState createState() => _StaffDashboardState();
 }
 
-class _StaffDashboardState extends State<StaffDashboard> {
+class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProviderStateMixin {
   late Future<List<Reclamation>> _reclamations;
   String? _userName;
   String? _userEmail;
   bool _isLoading = false;
+  late TabController _tabController;
 
   // Filtres
   String? _selectedStatus;
   String? _selectedPriority;
+  String? _selectedDepartment;
   DateTime? _startDate;
   DateTime? _endDate;
-  bool _showMyReclamations = false;
-  bool _showAssignedReclamations = false;
 
   final List<String> _statusOptions = ['New', 'In Progress', 'Done'];
   final List<String> _priorityOptions = ['1', '2', '3'];
+  final List<String> _departmentOptions = ['Réception', 'Chambre', 'Restaurant', 'Maintenance', 'Autre'];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _fetchUserInfo();
     _fetchReclamations();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _fetchUserInfo() async {
@@ -91,26 +99,41 @@ class _StaffDashboardState extends State<StaffDashboard> {
     setState(() {
       _selectedStatus = null;
       _selectedPriority = null;
+      _selectedDepartment = null;
       _startDate = null;
       _endDate = null;
-      _showMyReclamations = false;
-      _showAssignedReclamations = false;
     });
   }
 
-  List<Reclamation> _applyFilters(List<Reclamation> reclamations) {
-    return reclamations.where((r) {
-      bool statusMatch = _selectedStatus == null || r.status == _selectedStatus;
-      bool priorityMatch = _selectedPriority == null || r.priority.toString() == _selectedPriority;
-      bool dateMatch = (_startDate == null || r.createdAt.isAfter(_startDate!)) && 
-                      (_endDate == null || r.createdAt.isBefore(_endDate!));
-      bool userMatch = !_showMyReclamations || r.createdBy == _userEmail;
-      bool assignedMatch = !_showAssignedReclamations || r.assignedTo == _userName;
-
-      return statusMatch && priorityMatch && dateMatch && 
-             (!_showMyReclamations || userMatch) && 
-             (!_showAssignedReclamations || assignedMatch);
-    }).toList();
+  List<Reclamation> _filterReclamations(List<Reclamation> reclamations, int tabIndex) {
+    List<Reclamation> filtered = reclamations;
+    
+    // Appliquer les filtres spécifiques à l'onglet
+    switch (tabIndex) {
+      case 0: // Toutes les réclamations avec filtres
+        if (_selectedStatus != null) {
+          filtered = filtered.where((r) => r.status == _selectedStatus).toList();
+        }
+        if (_selectedPriority != null) {
+          filtered = filtered.where((r) => r.priority.toString() == _selectedPriority).toList();
+        }
+        if (_selectedDepartment != null) {
+          filtered = filtered.where((r) => r.departments.contains(_selectedDepartment)).toList();
+        }
+        if (_startDate != null) {
+          filtered = filtered.where((r) => r.createdAt.isAfter(_startDate!)).toList();
+        }
+        if (_endDate != null) {
+          filtered = filtered.where((r) => r.createdAt.isBefore(_endDate!)).toList();
+        }
+        return filtered;
+      case 1: // Mes réclamations
+        return reclamations.where((r) => r.createdBy == _userEmail).toList();
+      case 2: // Prises en charge
+        return reclamations.where((r) => r.assignedTo == _userName).toList();
+      default:
+        return reclamations;
+    }
   }
 
   Widget _buildFilterSection() {
@@ -144,33 +167,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 onPressed: _resetFilters,
                 icon: Icon(Icons.refresh, size: 18),
                 label: Text('Réinitialiser'),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilterChip(
-                label: Text('Mes réclamations'),
-                selected: _showMyReclamations,
-                onSelected: (selected) {
-                  setState(() {
-                    _showMyReclamations = selected;
-                    if (selected) _showAssignedReclamations = false;
-                  });
-                },
-              ),
-              FilterChip(
-                label: Text('Prises en charge'),
-                selected: _showAssignedReclamations,
-                onSelected: (selected) {
-                  setState(() {
-                    _showAssignedReclamations = selected;
-                    if (selected) _showMyReclamations = false;
-                  });
-                },
               ),
             ],
           ),
@@ -212,6 +208,25 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     )),
                   ],
                   onChanged: (value) => setState(() => _selectedPriority = value),
+                ),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedDepartment,
+                  decoration: InputDecoration(
+                    labelText: 'Département',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text('Tous')),
+                    ..._departmentOptions.map((dept) => DropdownMenuItem(
+                      value: dept,
+                      child: Text(dept),
+                    )),
+                  ],
+                  onChanged: (value) => setState(() => _selectedDepartment = value),
                 ),
               ),
             ],
@@ -341,7 +356,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   ),
                 ],
               ),
-              if (r.status == 'New' && _showMyReclamations)
+              if (r.status == 'New' && _tabController.index == 1)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: SizedBox(
@@ -360,7 +375,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   ),
                 ),
-              if (r.status == 'In Progress' && r.assignedTo == _userName && _showAssignedReclamations)
+              if (r.status == 'In Progress' && r.assignedTo == _userName && _tabController.index == 2)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: SizedBox(
@@ -434,9 +449,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 _buildDetailRow(Icons.person, 'Créé par', r.createdBy),
                 if (r.assignedTo.isNotEmpty)
                   _buildDetailRow(Icons.assignment_ind, 'Assigné à', r.assignedTo),
-                _buildDetailRow(Icons.calendar_today, 'Créé le', DateFormat('dd/MM/yyyy HH:mm').format(r.createdAt)),
                 SizedBox(height: 24),
-                if (r.status == 'New' && _showMyReclamations)
+                if (r.status == 'New' && _tabController.index == 1)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -450,7 +464,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       ),
                     ),
                   ),
-                if (r.status == 'In Progress' && r.assignedTo == _userName && _showAssignedReclamations)
+                if (r.status == 'In Progress' && r.assignedTo == _userName && _tabController.index == 2)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -500,59 +514,37 @@ class _StaffDashboardState extends State<StaffDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Tableau de bord'),
-        elevation: 0,
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.blue.shade700, Colors.blue.shade900],
+      body: Column(
+        children: [
+          TabBar(
+            controller: _tabController,
+            labelColor: Colors.blue,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.blue,
+            tabs: [
+              Tab(text: 'Réclamations'),
+              Tab(text: 'Mes réclamations'),
+              Tab(text: 'Prises en charge'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                Column(
+                  children: [
+                    _buildFilterSection(),
+                    Expanded(
+                      child: _buildReclamationsList(0),
+                    ),
+                  ],
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 40, color: Colors.blue.shade700),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    _userName ?? 'Utilisateur',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    _userEmail ?? '',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                _buildReclamationsList(1),
+                _buildReclamationsList(2),
+              ],
             ),
-            ListTile(
-              leading: Icon(Icons.logout),
-              title: Text('Déconnexion'),
-              onTap: () {
-                // TODO: Implémenter la déconnexion
-              },
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -565,91 +557,82 @@ class _StaffDashboardState extends State<StaffDashboard> {
         label: Text('Nouvelle réclamation'),
         backgroundColor: Colors.blue,
       ),
-      body: Column(
-        children: [
-          _buildFilterSection(),
-          Expanded(
-            child: FutureBuilder<List<Reclamation>>(
-              future: _reclamations,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 48, color: Colors.red),
-                        SizedBox(height: 16),
-                        Text(
-                          'Erreur de chargement',
-                          style: TextStyle(fontSize: 18, color: Colors.red),
-                        ),
-                        SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _fetchReclamations,
-                          child: Text('Réessayer'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Aucune réclamation',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+    );
+  }
 
-                List<Reclamation> filteredData = _applyFilters(snapshot.data!);
-
-                if (filteredData.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.filter_list, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Aucune réclamation ne correspond aux filtres',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _resetFilters,
-                          child: Text('Réinitialiser les filtres'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    _fetchReclamations();
-                  },
-                  child: ListView.builder(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    itemCount: filteredData.length,
-                    itemBuilder: (context, index) => _buildReclamationCard(filteredData[index]),
-                  ),
-                );
-              },
+  Widget _buildReclamationsList(int tabIndex) {
+    return FutureBuilder<List<Reclamation>>(
+      future: _reclamations,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                SizedBox(height: 16),
+                Text(
+                  'Erreur de chargement',
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                ),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _fetchReclamations,
+                  child: Text('Réessayer'),
+                ),
+              ],
             ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inbox, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Aucune réclamation',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        List<Reclamation> filteredData = _filterReclamations(snapshot.data!, tabIndex);
+
+        if (filteredData.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.filter_list, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Aucune réclamation dans cette catégorie',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            _fetchReclamations();
+          },
+          child: ListView.builder(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            itemCount: filteredData.length,
+            itemBuilder: (context, index) => _buildReclamationCard(filteredData[index]),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
