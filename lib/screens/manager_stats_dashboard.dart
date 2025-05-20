@@ -110,8 +110,8 @@ class _ManagerStatsDashboardState extends State<ManagerStatsDashboard> with Sing
         int doneLastMonth = data.where((r) => r.status == 'Done' && r.updatedAt.isAfter(lastMonth) && r.updatedAt.isBefore(thisMonth)).length;
         double percentChange = doneLastMonth == 0 ? 100 : ((doneThisMonth - doneLastMonth) / doneLastMonth * 100);
 
-        final durations = data.where((r) => r.status == 'Done').map((r) => r.updatedAt.difference(r.createdAt).inDays).toList();
-        double avgDays = durations.isNotEmpty ? durations.reduce((a, b) => a + b) / durations.length : 0;
+        final durations = data.where((r) => r.status == 'Done').map((r) => r.updatedAt.difference(r.createdAt).inHours).toList();
+        double avgHours = durations.isNotEmpty ? durations.reduce((a, b) => a + b) / durations.length : 0;
 
         return SingleChildScrollView(
           child: Padding(
@@ -140,7 +140,7 @@ class _ManagerStatsDashboardState extends State<ManagerStatsDashboard> with Sing
                     _buildStatCard('Nouvelles', statusCounts['New'].toString(), Icons.new_releases, Colors.blue),
                     _buildStatCard('En cours', statusCounts['In Progress'].toString(), Icons.pending_actions, Colors.orange),
                     _buildStatCard('Terminées', statusCounts['Done'].toString(), Icons.check_circle, Colors.green),
-                    _buildStatCard('Durée moyenne', '${avgDays.toStringAsFixed(1)} jours', Icons.timer, Colors.purple),
+                    _buildStatCard('Durée moyenne', '${avgHours.toStringAsFixed(1)} heures', Icons.timer, Colors.purple),
                   ],
                 ),
                 SizedBox(height: 24),

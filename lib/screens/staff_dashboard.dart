@@ -422,6 +422,36 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                       ),
                     ],
                   ),
+                  if (r.createdBy == _userEmail && r.status == 'New')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.edit, color: Colors.white),
+                              onPressed: () => _showReclamationForm(reclamation: r),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.delete, color: Colors.white),
+                              onPressed: () => _deleteReclamation(r.id),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (r.status == 'New')
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
@@ -581,6 +611,104 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
         ],
       ),
     );
+  }
+
+  void _showReclamationForm({Reclamation? reclamation}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => reclamation == null 
+          ? ReclamationForm() 
+          : EditReclamationForm(reclamation: reclamation),
+      ),
+    );
+    
+    if (result == true) {
+      _fetchReclamations();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text(reclamation == null 
+                ? 'La réclamation a été créée avec succès'
+                : 'La réclamation a été modifiée avec succès'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteReclamation(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmer la suppression'),
+        content: Text('Êtes-vous sûr de vouloir supprimer cette réclamation ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await ReclamationService.deleteReclamation(id, context);
+        _fetchReclamations();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('La réclamation a été supprimée avec succès'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
