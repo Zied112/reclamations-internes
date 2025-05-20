@@ -290,46 +290,34 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
     String dateLabel;
     DateTime displayDate;
 
-    // Définir la couleur de la carte en fonction de la priorité
-    switch (r.priority) {
-      case 1:
-        cardColor = Colors.red.shade900.withOpacity(0.8);
-        break;
-      case 2:
-        cardColor = Colors.orange.shade900.withOpacity(0.8);
-        break;
-      case 3:
-        cardColor = Colors.purple.shade900.withOpacity(0.8);
-        break;
-      default:
-        cardColor = Colors.grey.shade900.withOpacity(0.8);
-    }
-
-    // Définir la couleur, l'icône et la date en fonction du statut
     switch (r.status) {
       case 'New':
         statusColor = Colors.orange;
         statusIcon = Icons.new_releases;
         dateLabel = 'Créée le';
         displayDate = r.createdAt;
+        cardColor = Colors.orange.shade100;
         break;
       case 'In Progress':
         statusColor = Colors.blue;
         statusIcon = Icons.work;
         dateLabel = 'Prise en charge le';
         displayDate = r.updatedAt;
+        cardColor = Colors.blue.shade100;
         break;
       case 'Done':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
         dateLabel = 'Terminée le';
         displayDate = r.updatedAt;
+        cardColor = Colors.green.shade100;
         break;
       default:
         statusColor = Colors.grey;
         statusIcon = Icons.help;
         dateLabel = 'Créée le';
         displayDate = r.createdAt;
+        cardColor = Colors.grey.shade100;
     }
 
     return Hero(
@@ -359,7 +347,7 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Column(
@@ -370,20 +358,19 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
+                                color: Colors.black87,
                               ),
                             ),
-                            SizedBox(height: 8),
+                            SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.access_time, size: 16, color: Colors.white.withOpacity(0.8)),
+                                Icon(statusIcon, size: 16, color: statusColor),
                                 SizedBox(width: 4),
                                 Text(
-                                  '$dateLabel ${dateFormatter.format(displayDate)}',
+                                  r.status,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                    fontSize: 14,
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -391,109 +378,67 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                           ],
                         ),
                       ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      if (r.createdBy == _userEmail && r.status == 'New')
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Icon(statusIcon, color: statusColor, size: 16),
-                            SizedBox(width: 4),
-                            Text(
-                              r.status,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showReclamationForm(reclamation: r),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteReclamation(r.id),
                               ),
                             ),
                           ],
                         ),
-                      ),
                     ],
                   ),
-                  if (r.createdBy == _userEmail && r.status == 'New')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: IconButton(
-                              icon: Icon(Icons.edit, color: Colors.white),
-                              onPressed: () => _showReclamationForm(reclamation: r),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.white),
-                              onPressed: () => _deleteReclamation(r.id),
-                            ),
-                          ),
-                        ],
+                  SizedBox(height: 12),
+                  Text(
+                    r.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.black87),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$dateLabel ${dateFormatter.format(displayDate)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  if (r.status == 'New')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : () => _takeInCharge(r),
-                          icon: Icon(Icons.check_circle, color: Colors.green),
+                      if (r.status == 'New' && r.createdBy != _userEmail)
+                        ElevatedButton.icon(
+                          onPressed: () => _takeInCharge(r),
+                          icon: Icon(Icons.work, size: 16),
                           label: Text('Prendre en charge'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: cardColor,
-                            elevation: 2,
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            textStyle: TextStyle(fontSize: 12),
                           ),
                         ),
-                      ),
-                    ),
-                  if (r.status == 'In Progress' && r.assignedTo == _userName)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : () => _markAsDone(r),
-                          icon: Icon(Icons.check),
-                          label: Text('Marquer comme terminé'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: cardColor,
-                            elevation: 2,
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),

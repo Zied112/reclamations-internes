@@ -33,24 +33,43 @@ class _ReclamationFormState extends State<ReclamationForm> {
   String _objet = '';
   String _description = '';
   List<String> _departments = [];
-  int _priority = 1;
-  String _status = 'New';
+  String _status = 'New';  // Toujours 'New' pour une nouvelle réclamation
   String _location = '';
-  String _createdBy = ''; // Variable pour le nom de l'utilisateur connecté
+  String _createdBy = '';
+  int? _priority;  // Changé en nullable pour indiquer qu'aucune priorité n'est sélectionnée
 
   // Liste des départements pour CheckboxListTile
-  final List<String> _availableDepartments = ['HR', 'IT', 'Maintenance', 'Admin'];
+  final List<String> _availableDepartments = [
+    'HR',
+    'IT',
+    'Maintenance',
+    'Admin',
+    'Restauration',
+    'Réception',
+    'Nettoyage',
+    'Sécurité',
+    'Comptabilité',
+    'Marketing',
+    'Ressources Humaines',
+    'Service Client',
+    'Direction',
+    'Logistique',
+    'Qualité'
+  ];
 
-  // Liste des priorités pour Dropdown
-  final List<int> _priorityOptions = [1, 2, 3];
-
-  // Liste des statuts pour Dropdown
-  final List<String> _statusOptions = ['New', 'In Progress', 'Done'];
+  // Liste des priorités avec leurs descriptions
+  final List<Map<String, dynamic>> _priorityOptions = [
+    {'value': 3, 'label': 'Basse', 'color': Colors.purple},
+    {'value': 2, 'label': 'Moyenne', 'color': Colors.orange},
+    {'value': 1, 'label': 'Haute', 'color': Colors.red},
+  ];
 
   @override
   void initState() {
     super.initState();
     _getUserName();
+    // Initialiser avec une liste vide au lieu de tous les départements
+    _departments = [];
   }
 
   // Fonction pour récupérer le nom de l'utilisateur connecté
@@ -69,158 +88,421 @@ class _ReclamationFormState extends State<ReclamationForm> {
   void _submitForm() async {
     if (_createdBy.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Le nom de l\'utilisateur n\'est pas encore chargé. Veuillez patienter.')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Le nom de l\'utilisateur n\'est pas encore chargé. Veuillez patienter.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: Duration(seconds: 3),
+        ),
       );
       return;
     }
-    print("Formulaire soumis");
+
+    if (_priority == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Veuillez sélectionner une priorité.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    if (_departments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Veuillez sélectionner au moins un département.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     if (_formKey.currentState?.validate() ?? false) {
-      print("Formulaire validé");
-
       _formKey.currentState?.save();
 
-      // Vérifier si des départements ont été sélectionnés
-      if (_departments.isEmpty) {
-        print("Aucun département sélectionné");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Veuillez sélectionner au moins un département.')),
-        );
-        return;
-      }
-
-      print("Données de la réclamation à envoyer :");
-      print("Objet : $_objet");
-      print("Description : $_description");
-      print("Départements : $_departments");
-      print("Priorité : $_priority");
-      print("Statut : $_status");
-      print("Emplacement : $_location");
-
-      // Créer l'objet de réclamation
       final reclamationData = {
         'objet': _objet,
         'description': _description,
-        'createdBy': _createdBy,  // Utilisation du nom de l'utilisateur connecté
+        'createdBy': _createdBy,
         'departments': _departments,
-        'priority': _priority,
-        'status': _status,
+        'priority': _priority,  // Utilisation de la priorité sélectionnée
+        'status': 'New',
         'location': _location,
       };
 
       try {
-        // Envoi de la réclamation via l'API
         final response = await http.post(
           Uri.parse('$baseUrl/api/reclamations/create'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode(reclamationData),
         );
 
-        print("Réponse de l'API: ${response.statusCode}");
-        print("Réponse de l'API corps : ${response.body}");
-
         if (response.statusCode == 201) {
-          Navigator.pop(context, true); // Retourner true pour indiquer le succès
+          Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Échec de la création de la réclamation.')),
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Échec de la création de la réclamation.'),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.only(
+                bottom: MediaQuery.of(context).size.height - 100,
+                left: 10,
+                right: 10,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              duration: Duration(seconds: 3),
+            ),
           );
         }
       } catch (e) {
-        // Gestion des erreurs réseau ou autres exceptions
-        print("Erreur lors de la soumission : $e");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Une erreur est survenue. Veuillez réessayer.')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Une erreur est survenue. Veuillez réessayer.'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: Duration(seconds: 3),
+          ),
         );
       }
-    } else {
-      print("Formulaire non validé");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Afficher un indicateur de chargement si le nom n'est pas encore prêt
     if (_createdBy.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text('Créer une réclamation')),
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(
+          title: Text('Créer une réclamation'),
+          elevation: 0,
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+          ),
+        ),
       );
     }
+
     return Scaffold(
-      appBar: AppBar(title: Text('Créer une réclamation')),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Objet'),
-                  validator: (value) => value!.isEmpty ? 'L\'objet est requis' : null,
-                  onSaved: (value) => _objet = value!,
-                ),
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Description'),
-                  validator: (value) => value!.isEmpty ? 'La description est requise' : null,
-                  onSaved: (value) => _description = value!,
-                ),
-                // Choix des départements
-                Text('Départements (sélectionner au moins un)'),
-                ..._availableDepartments.map((String dept) {
-                  return CheckboxListTile(
-                    title: Text(dept),
-                    value: _departments.contains(dept),
-                    onChanged: (bool? selected) {
-                      setState(() {
-                        if (selected != null && selected) {
-                          _departments.add(dept);
-                        } else {
-                          _departments.remove(dept);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-                DropdownButtonFormField<int>(
-                  value: _priority,
-                  decoration: InputDecoration(labelText: 'Priorité'),
-                  items: _priorityOptions.map((int priority) {
-                    return DropdownMenuItem<int>(value: priority, child: Text(priority.toString()));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _priority = value!;
-                    });
-                  },
-                  validator: (value) => value == null ? 'La priorité est requise' : null,
-                ),
-                DropdownButtonFormField<String>(
-                  value: _status,
-                  decoration: InputDecoration(labelText: 'Statut'),
-                  items: _statusOptions.map((String status) {
-                    return DropdownMenuItem<String>(value: status, child: Text(status));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _status = value!;
-                    });
-                  },
-                  validator: (value) => value == null ? 'Le statut est requis' : null,
-                ),
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Emplacement'),
-                  validator: (value) => value!.isEmpty ? 'L\'emplacement est requis' : null,
-                  onSaved: (value) => _location = value!,
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _createdBy.isEmpty ? null : _submitForm,  // Désactive si nom non prêt
-                  child: Text('Soumettre la réclamation'),
-                ),
-              ],
+      appBar: AppBar(
+        title: Text('Créer une réclamation'),
+        elevation: 0,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade50, Colors.white],
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informations principales',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Objet',
+                              prefixIcon: Icon(Icons.title),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            validator: (value) => value!.isEmpty ? 'L\'objet est requis' : null,
+                            onSaved: (value) => _objet = value!,
+                          ),
+                          SizedBox(height: 16),
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Description',
+                              prefixIcon: Icon(Icons.description),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            maxLines: 3,
+                            validator: (value) => value!.isEmpty ? 'La description est requise' : null,
+                            onSaved: (value) => _description = value!,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Détails',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Emplacement',
+                              prefixIcon: Icon(Icons.location_on),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            validator: (value) => value!.isEmpty ? 'L\'emplacement est requis' : null,
+                            onSaved: (value) => _location = value!,
+                          ),
+                          SizedBox(height: 16),
+                          // Ajout du sélecteur de priorité
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Priorité',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                children: _priorityOptions.map((priority) {
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4),
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            _priority = priority['value'];
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: _priority == priority['value']
+                                                ? priority['color'].withOpacity(0.1)
+                                                : Colors.grey.shade100,
+                                            border: Border.all(
+                                              color: _priority == priority['value']
+                                                  ? priority['color']
+                                                  : Colors.grey.shade300,
+                                              width: _priority == priority['value'] ? 2 : 1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Icon(
+                                                Icons.flag,
+                                                color: priority['color'],
+                                                size: 24,
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                priority['label'],
+                                                style: TextStyle(
+                                                  color: priority['color'],
+                                                  fontWeight: _priority == priority['value']
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Départements concernés',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Sélectionnez au moins un département',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          ..._availableDepartments.map((String dept) {
+                            return CheckboxListTile(
+                              title: Text(dept),
+                              value: _departments.contains(dept),
+                              activeColor: Colors.blue,
+                              checkColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              onChanged: (bool? selected) {
+                                setState(() {
+                                  if (selected != null && selected) {
+                                    _departments.add(dept);
+                                  } else {
+                                    _departments.remove(dept);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _submitForm,
+                      icon: Icon(Icons.add_circle),
+                      label: Text('Créer la réclamation'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
