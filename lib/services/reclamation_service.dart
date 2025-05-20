@@ -90,7 +90,7 @@ class ReclamationService {
     final baseUrl = getBaseUrl();
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/reclamations/update/$id'),
+        Uri.parse('$baseUrl/api/reclamations/$id/status'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'status': status,

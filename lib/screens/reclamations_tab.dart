@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/reclamation_service.dart';
 import 'reclamation.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ReclamationsTab extends StatefulWidget {
   @override
@@ -16,6 +18,9 @@ class _ReclamationsTabState extends State<ReclamationsTab> {
   DateTime? _endDate;
   final List<String> _statusOptions = ['New', 'In Progress', 'Done'];
   final List<String> _departmentOptions = ['HR', 'IT', 'Maintenance', 'Admin'];
+  
+  // Définition de l'URL de base
+  final String baseUrl = 'http://localhost:3000';
 
   @override
   void initState() {
@@ -63,6 +68,125 @@ class _ReclamationsTabState extends State<ReclamationsTab> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
+    }
+  }
+
+  void _showReclamationDetails(Reclamation reclamation) async {
+    String assignedUserName = 'Non assignée';
+    if (reclamation.assignedTo.isNotEmpty) {
+      try {
+        final response = await http.get(
+          Uri.parse('$baseUrl/api/users/get'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        if (response.statusCode == 200) {
+          final users = json.decode(response.body) as List;
+          // Si assignedTo est déjà un nom (pas un ID), l'utiliser directement
+          if (reclamation.assignedTo == 'staff') {
+            assignedUserName = 'staff';
+          } else {
+            final assignedUser = users.firstWhere(
+              (user) => user['_id'] == reclamation.assignedTo,
+              orElse: () => null,
+            );
+            if (assignedUser != null) {
+              assignedUserName = assignedUser['name'];
+            }
+          }
+        }
+      } catch (e) {
+        print('Erreur lors de la récupération des informations de l\'utilisateur: $e');
+        // En cas d'erreur, utiliser directement la valeur de assignedTo
+        assignedUserName = reclamation.assignedTo;
+      }
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Détails de la réclamation'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow('Objet', reclamation.objet),
+              SizedBox(height: 16),
+              _buildDetailRow('Description', reclamation.description),
+              SizedBox(height: 16),
+              _buildDetailRow('Emplacement', reclamation.location),
+              SizedBox(height: 16),
+              _buildDetailRow('Départements', reclamation.departments.join(', ')),
+              SizedBox(height: 16),
+              _buildDetailRow('Priorité', 'Niveau ${reclamation.priority}'),
+              SizedBox(height: 16),
+              _buildDetailRow('Statut', reclamation.status),
+              SizedBox(height: 16),
+              _buildDetailRow('Créée le', DateFormat('dd/MM/yyyy HH:mm').format(reclamation.createdAt)),
+              SizedBox(height: 16),
+              _buildDetailRow('Dernière mise à jour', DateFormat('dd/MM/yyyy HH:mm').format(reclamation.updatedAt)),
+              SizedBox(height: 16),
+              _buildDetailRow('Assignée à', assignedUserName),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[700],
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _takeInCharge(Reclamation r) async {
+    try {
+      await ReclamationService.updateReclamationStatus(
+        r.id,
+        'In Progress',
+        assignedTo: 'staff', // Utiliser directement le nom "staff"
+      );
+      _fetchReclamations();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Réclamation prise en charge avec succès'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la prise en charge: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -134,13 +258,163 @@ class _ReclamationsTabState extends State<ReclamationsTab> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final r = filtered[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(r.objet),
-                          subtitle: Text(r.description),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () => _deleteReclamation(r.id),
+                      final dateFormatter = DateFormat('dd/MM/yyyy HH:mm');
+                      Color cardColor;
+                      Color statusColor;
+                      IconData statusIcon;
+                      String dateLabel;
+                      DateTime displayDate;
+
+                      // Définir la couleur de la carte en fonction de la priorité
+                      switch (r.priority) {
+                        case 1:
+                          cardColor = Colors.red.shade900.withOpacity(0.8);
+                          break;
+                        case 2:
+                          cardColor = Colors.orange.shade900.withOpacity(0.8);
+                          break;
+                        case 3:
+                          cardColor = Colors.purple.shade900.withOpacity(0.8);
+                          break;
+                        default:
+                          cardColor = Colors.grey.shade900.withOpacity(0.8);
+                      }
+
+                      // Définir la couleur, l'icône et la date en fonction du statut
+                      switch (r.status) {
+                        case 'New':
+                          statusColor = Colors.orange;
+                          statusIcon = Icons.new_releases;
+                          dateLabel = 'Créée le';
+                          displayDate = r.createdAt;
+                          break;
+                        case 'In Progress':
+                          statusColor = Colors.blue;
+                          statusIcon = Icons.work;
+                          dateLabel = 'Prise en charge le';
+                          displayDate = r.updatedAt;
+                          break;
+                        case 'Done':
+                          statusColor = Colors.green;
+                          statusIcon = Icons.check_circle;
+                          dateLabel = 'Terminée le';
+                          displayDate = r.updatedAt;
+                          break;
+                        default:
+                          statusColor = Colors.grey;
+                          statusIcon = Icons.help;
+                          dateLabel = 'Créée le';
+                          displayDate = r.createdAt;
+                      }
+
+                      return Hero(
+                        tag: 'reclamation-${r.id}',
+                        child: Card(
+                          elevation: 4,
+                          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          color: cardColor,
+                          child: InkWell(
+                            onTap: () => _showReclamationDetails(r),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                r.objet,
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                              SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.access_time, size: 16, color: Colors.white.withOpacity(0.8)),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    '$dateLabel ${dateFormatter.format(displayDate)}',
+                                                    style: TextStyle(
+                                                      color: Colors.white.withOpacity(0.8),
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(20),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(statusIcon, color: statusColor, size: 16),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                r.status,
+                                                style: TextStyle(
+                                                  color: statusColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.edit, color: Colors.white),
+                                          onPressed: () => _showReclamationForm(reclamation: r),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.delete, color: Colors.white),
+                                          onPressed: () => _deleteReclamation(r.id),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       );

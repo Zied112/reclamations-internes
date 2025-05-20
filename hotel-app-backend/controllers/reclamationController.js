@@ -3,7 +3,17 @@ const User = require('../models/user');
 
 exports.createReclamation = async (req, res) => {
   try {
-    const reclamation = new Reclamation(req.body);
+    const reclamationData = { ...req.body };
+    
+    // Si un utilisateur est assigné, récupérer son nom
+    if (reclamationData.assignedTo) {
+      const user = await User.findById(reclamationData.assignedTo);
+      if (user) {
+        reclamationData.assignedTo = user.name;
+      }
+    }
+
+    const reclamation = new Reclamation(reclamationData);
     await reclamation.save();
     res.status(201).json(reclamation);
   } catch (err) {
@@ -19,7 +29,7 @@ exports.getAllReclamations = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    let { status, assignedTo } = req.body;
+    const { status, assignedTo } = req.body;
 
     console.log('--- [updateStatus] ---');
     console.log('ID:', id);
@@ -32,29 +42,35 @@ exports.updateStatus = async (req, res) => {
       return res.status(404).json({ error: 'Réclamation non trouvée' });
     }
 
-    // Si un utilisateur est assigné, vérifier si c'est un nom ou un ObjectId
-    if (assignedTo) {
-      // Si ce n'est pas un ObjectId, on suppose que c'est un nom
-      if (!assignedTo.match(/^[0-9a-fA-F]{24}$/)) {
-        const user = await User.findOne({ name: assignedTo });
-        if (!user) {
-          return res.status(404).json({ error: 'Utilisateur assigné non trouvé' });
+    // Si assignedTo est "staff", l'utiliser directement
+    let assignedUserName = assignedTo;
+    if (assignedTo && assignedTo !== 'staff') {
+      try {
+        const user = await User.findById(assignedTo);
+        if (user) {
+          assignedUserName = user.name;
         }
-        assignedTo = user._id;
+      } catch (err) {
+        console.log('Erreur lors de la récupération de l\'utilisateur:', err);
+        // En cas d'erreur, utiliser la valeur d'origine
+        assignedUserName = assignedTo;
       }
     }
 
-    // Mettre à jour la réclamation avec le statut et l'utilisateur assigné
+    // Mettre à jour la réclamation avec le statut et le nom de l'utilisateur assigné
     const updatedReclamation = await Reclamation.findByIdAndUpdate(
       id,
-      { status, assignedTo, updatedAt: new Date() },
+      { 
+        status, 
+        assignedTo: assignedUserName, 
+        updatedAt: new Date() 
+      },
       { new: true }
     );
 
     console.log('Réclamation mise à jour (status):', updatedReclamation);
     res.json(updatedReclamation);
   } catch (err) {
-    // Retourner une erreur avec le message
     console.log('Erreur updateStatus:', err);
     res.status(400).json({ error: `Erreur: ${err.message}` });
   }
@@ -62,7 +78,7 @@ exports.updateStatus = async (req, res) => {
 
 exports.updateReclamation = async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = { ...req.body };
 
   // Ajout de logs pour debug
   console.log('--- [updateReclamation] ---');
@@ -70,6 +86,14 @@ exports.updateReclamation = async (req, res) => {
   console.log('updateData:', updateData);
 
   try {
+    // Si un utilisateur est assigné, récupérer son nom
+    if (updateData.assignedTo) {
+      const user = await User.findById(updateData.assignedTo);
+      if (user) {
+        updateData.assignedTo = user.name;
+      }
+    }
+
     const updatedReclamation = await Reclamation.findByIdAndUpdate(
       id,
       { ...updateData, updatedAt: new Date() },

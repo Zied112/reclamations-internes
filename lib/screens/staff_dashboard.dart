@@ -16,7 +16,7 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
   String? _userName;
   String? _userEmail;
   bool _isLoading = false;
-  late TabController _tabController;
+  int _selectedIndex = 0; // Pour la navigation dans le menu
 
   // Filtres
   String? _selectedStatus;
@@ -29,17 +29,23 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
   final List<String> _priorityOptions = ['1', '2', '3'];
   final List<String> _departmentOptions = ['Réception', 'Chambre', 'Restaurant', 'Maintenance', 'Autre'];
 
+  // Titres des sections du menu
+  final List<String> _menuTitles = [
+    'Nouvelles réclamations',
+    'Mes réclamations',
+    'Prises en charge',
+    'Historique'
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _fetchUserInfo();
     _fetchReclamations();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -59,10 +65,28 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
   }
 
   Future<void> _takeInCharge(Reclamation r) async {
+    if (_userName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: Impossible de récupérer le nom de l\'utilisateur')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      await ReclamationService.updateReclamationStatus(r.id, 'In Progress', assignedTo: _userName);
+      await ReclamationService.updateReclamationStatus(
+        r.id,
+        'In Progress',
+        assignedTo: _userName,
+      );
       _fetchReclamations();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Réclamation prise en charge avec succès')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la prise en charge: $e')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -105,35 +129,39 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
     });
   }
 
-  List<Reclamation> _filterReclamations(List<Reclamation> reclamations, int tabIndex) {
+  List<Reclamation> _filterReclamations(List<Reclamation> reclamations, int menuIndex) {
     List<Reclamation> filtered = reclamations;
     
-    // Appliquer les filtres spécifiques à l'onglet
-    switch (tabIndex) {
-      case 0: // Toutes les réclamations avec filtres
-        if (_selectedStatus != null) {
-          filtered = filtered.where((r) => r.status == _selectedStatus).toList();
-        }
-        if (_selectedPriority != null) {
-          filtered = filtered.where((r) => r.priority.toString() == _selectedPriority).toList();
-        }
-        if (_selectedDepartment != null) {
-          filtered = filtered.where((r) => r.departments.contains(_selectedDepartment)).toList();
-        }
-        if (_startDate != null) {
-          filtered = filtered.where((r) => r.createdAt.isAfter(_startDate!)).toList();
-        }
-        if (_endDate != null) {
-          filtered = filtered.where((r) => r.createdAt.isBefore(_endDate!)).toList();
-        }
-        return filtered;
+    switch (menuIndex) {
+      case 0: // Nouvelles réclamations
+        filtered = filtered.where((r) => r.status == 'New').toList();
+        break;
       case 1: // Mes réclamations
-        return reclamations.where((r) => r.createdBy == _userEmail).toList();
+        filtered = filtered.where((r) => r.createdBy == _userEmail).toList();
+        break;
       case 2: // Prises en charge
-        return reclamations.where((r) => r.assignedTo == _userName).toList();
-      default:
-        return reclamations;
+        filtered = filtered.where((r) => r.assignedTo == _userName && r.status != 'Done').toList();
+        break;
+      case 3: // Historique
+        filtered = filtered.where((r) => r.assignedTo == _userName && r.status == 'Done').toList();
+        break;
     }
+
+    // Appliquer les filtres supplémentaires si sélectionnés
+    if (_selectedPriority != null) {
+      filtered = filtered.where((r) => r.priority.toString() == _selectedPriority).toList();
+    }
+    if (_selectedDepartment != null) {
+      filtered = filtered.where((r) => r.departments.contains(_selectedDepartment)).toList();
+    }
+    if (_startDate != null) {
+      filtered = filtered.where((r) => r.createdAt.isAfter(_startDate!)).toList();
+    }
+    if (_endDate != null) {
+      filtered = filtered.where((r) => r.createdAt.isBefore(_endDate!)).toList();
+    }
+
+    return filtered;
   }
 
   Widget _buildFilterSection() {
@@ -175,30 +203,14 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Statut',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  items: [
-                    DropdownMenuItem(value: null, child: Text('Tous')),
-                    ..._statusOptions.map((status) => DropdownMenuItem(
-                      value: status,
-                      child: Text(status),
-                    )),
-                  ],
-                  onChanged: (value) => setState(() => _selectedStatus = value),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<String>(
                   value: _selectedPriority,
                   decoration: InputDecoration(
                     labelText: 'Priorité',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    prefixIcon: Icon(Icons.priority_high),
                   ),
                   items: [
                     DropdownMenuItem(value: null, child: Text('Toutes')),
@@ -216,8 +228,11 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                   value: _selectedDepartment,
                   decoration: InputDecoration(
                     labelText: 'Département',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    prefixIcon: Icon(Icons.business),
                   ),
                   items: [
                     DropdownMenuItem(value: null, child: Text('Tous')),
@@ -235,23 +250,29 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
           InkWell(
             onTap: _pickDateRange,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _startDate == null && _endDate == null
-                        ? 'Sélectionner une période'
-                        : '${DateFormat('dd/MM/yyyy').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
-                    style: TextStyle(
-                      color: _startDate == null ? Colors.grey : Colors.black,
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                      SizedBox(width: 8),
+                      Text(
+                        _startDate == null && _endDate == null
+                            ? 'Sélectionner une période'
+                            : '${DateFormat('dd/MM/yyyy').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
+                        style: TextStyle(
+                          color: _startDate == null ? Colors.grey : Colors.black,
+                        ),
+                      ),
+                    ],
                   ),
-                  Icon(Icons.calendar_today, size: 20),
+                  Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
                 ],
               ),
             ),
@@ -265,136 +286,187 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
     final dateFormatter = DateFormat('dd/MM/yyyy HH:mm');
     Color statusColor;
     IconData statusIcon;
+    Color cardColor;
+    String dateLabel;
+    DateTime displayDate;
 
+    // Définir la couleur de la carte en fonction de la priorité
+    switch (r.priority) {
+      case 1:
+        cardColor = Colors.red.shade900.withOpacity(0.8);
+        break;
+      case 2:
+        cardColor = Colors.orange.shade900.withOpacity(0.8);
+        break;
+      case 3:
+        cardColor = Colors.purple.shade900.withOpacity(0.8);
+        break;
+      default:
+        cardColor = Colors.grey.shade900.withOpacity(0.8);
+    }
+
+    // Définir la couleur, l'icône et la date en fonction du statut
     switch (r.status) {
       case 'New':
         statusColor = Colors.orange;
         statusIcon = Icons.new_releases;
+        dateLabel = 'Créée le';
+        displayDate = r.createdAt;
         break;
       case 'In Progress':
         statusColor = Colors.blue;
         statusIcon = Icons.work;
+        dateLabel = 'Prise en charge le';
+        displayDate = r.updatedAt;
         break;
       case 'Done':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
+        dateLabel = 'Terminée le';
+        displayDate = r.updatedAt;
         break;
       default:
         statusColor = Colors.grey;
         statusIcon = Icons.help;
+        dateLabel = 'Créée le';
+        displayDate = r.createdAt;
     }
 
-    return Card(
-      elevation: 4,
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _showReclamationDetails(r),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Hero(
+      tag: 'reclamation-${r.id}',
+      child: Card(
+        elevation: 4,
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: cardColor,
+        child: InkWell(
+          onTap: () => _showReclamationDetails(r),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      r.objet,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.objet,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.white.withOpacity(0.8)),
+                                SizedBox(width: 4),
+                                Text(
+                                  '$dateLabel ${dateFormatter.format(displayDate)}',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, color: statusColor, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              r.status,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(statusIcon, color: statusColor, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          r.status,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.bold,
+                  if (r.status == 'New')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : () => _takeInCharge(r),
+                          icon: Icon(Icons.check_circle, color: Colors.green),
+                          label: Text('Prendre en charge'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: cardColor,
+                            elevation: 2,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Text(
-                r.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 4),
-                  Text(
-                    r.location,
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  Spacer(),
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 4),
-                  Text(
-                    dateFormatter.format(r.createdAt),
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              if (r.status == 'New' && _tabController.index == 1)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : () => _takeInCharge(r),
-                      icon: Icon(Icons.work),
-                      label: Text('Prendre en charge'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  if (r.status == 'In Progress' && r.assignedTo == _userName)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : () => _markAsDone(r),
+                          icon: Icon(Icons.check),
+                          label: Text('Marquer comme terminé'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: cardColor,
+                            elevation: 2,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              if (r.status == 'In Progress' && r.assignedTo == _userName && _tabController.index == 2)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : () => _markAsDone(r),
-                      icon: Icon(Icons.check),
-                      label: Text('Marquer comme terminé'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -450,7 +522,7 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                 if (r.assignedTo.isNotEmpty)
                   _buildDetailRow(Icons.assignment_ind, 'Assigné à', r.assignedTo),
                 SizedBox(height: 24),
-                if (r.status == 'New' && _tabController.index == 1)
+                if (r.status == 'New')
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -464,7 +536,7 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
                       ),
                     ),
                   ),
-                if (r.status == 'In Progress' && r.assignedTo == _userName && _tabController.index == 2)
+                if (r.status == 'In Progress' && r.assignedTo == _userName)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -514,53 +586,172 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            labelColor: Colors.blue,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.blue,
-            tabs: [
-              Tab(text: 'Réclamations'),
-              Tab(text: 'Mes réclamations'),
-              Tab(text: 'Prises en charge'),
-            ],
+      appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                Column(
+        ),
+        title: Text(
+          _menuTitles[_selectedIndex],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+      ),
+      drawer: Drawer(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, Colors.grey.shade50],
+            ),
+          ),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.blue, Colors.blue.shade800],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    _buildFilterSection(),
-                    Expanded(
-                      child: _buildReclamationsList(0),
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 35, color: Colors.blue),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      _userName ?? 'Utilisateur',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      _userEmail ?? '',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
-                _buildReclamationsList(1),
-                _buildReclamationsList(2),
-              ],
-            ),
+              ),
+              _buildDrawerItem(0, Icons.new_releases, 'Nouvelles réclamations', Colors.orange),
+              _buildDrawerItem(1, Icons.list, 'Mes réclamations', Colors.blue),
+              _buildDrawerItem(2, Icons.work, 'Prises en charge', Colors.green),
+              _buildDrawerItem(3, Icons.history, 'Historique', Colors.purple),
+            ],
           ),
-        ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Colors.grey.shade50],
+          ),
+        ),
+        child: Column(
+          children: [
+            if (_selectedIndex == 0) _buildFilterSection(),
+            Expanded(
+              child: _buildReclamationsList(_selectedIndex),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => ReclamationForm()),
-          ).then((_) => _fetchReclamations());
+          );
+          
+          if (result == true) {
+            _fetchReclamations();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('La réclamation a été créée avec succès'),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).size.height - 100,
+                  left: 10,
+                  right: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+            setState(() {
+              _selectedIndex = 0;
+            });
+          }
         },
-        icon: Icon(Icons.add),
-        label: Text('Nouvelle réclamation'),
-        backgroundColor: Colors.blue,
+        child: Icon(Icons.add, color: Colors.blue),
+        backgroundColor: Colors.white,
+        elevation: 4,
       ),
     );
   }
 
-  Widget _buildReclamationsList(int tabIndex) {
+  Widget _buildDrawerItem(int index, IconData icon, String title, Color color) {
+    return ListTile(
+      leading: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _selectedIndex == index ? color.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: _selectedIndex == index ? FontWeight.bold : FontWeight.normal,
+          color: _selectedIndex == index ? color : Colors.black87,
+        ),
+      ),
+      selected: _selectedIndex == index,
+      onTap: () {
+        setState(() {
+          _selectedIndex = index;
+        });
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  Widget _buildReclamationsList(int menuIndex) {
     return FutureBuilder<List<Reclamation>>(
       future: _reclamations,
       builder: (context, snapshot) {
@@ -603,7 +794,7 @@ class _StaffDashboardState extends State<StaffDashboard> with SingleTickerProvid
           );
         }
 
-        List<Reclamation> filteredData = _filterReclamations(snapshot.data!, tabIndex);
+        List<Reclamation> filteredData = _filterReclamations(snapshot.data!, menuIndex);
 
         if (filteredData.isEmpty) {
           return Center(

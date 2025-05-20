@@ -120,10 +120,7 @@ class _ReclamationFormState extends State<ReclamationForm> {
         print("Réponse de l'API corps : ${response.body}");
 
         if (response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Réclamation créée avec succès!')),
-          );
-          // Vous pouvez ici rediriger ou nettoyer le formulaire après une soumission réussie
+          Navigator.pop(context, true); // Retourner true pour indiquer le succès
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Échec de la création de la réclamation.')),
