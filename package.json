@@ -6,6 +6,7 @@
     "hotel-app-backend"
   ],
   "scripts": {
-    "start": "cd hotel-app-backend && npm start"
+    "build": "cd hotel-app-backend && npm install",
+    "start": "cd hotel-app-backend && node ./server.js"
   }
 } 
