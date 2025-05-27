@@ -3,8 +3,6 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 
-
-
 // Charger les variables d'environnement
 dotenv.config();
 
@@ -25,12 +23,18 @@ const reclamationRoutes = require('./routes/reclamationRoutes');
 app.use('/api/users', userRoutes);
 app.use('/api/reclamations', reclamationRoutes);
 
+// Route de base pour vérifier que l'API fonctionne
+app.get('/', (req, res) => {
+  res.json({ message: 'API is running' });
+});
+
 // Connexion à MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connecté');
-    app.listen(process.env.PORT, () => {
-      console.log(`🚀 Serveur lancé sur le port ${process.env.PORT}`);
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`🚀 Serveur lancé sur le port ${PORT}`);
     });
   })
   .catch(err => console.error('Erreur MongoDB:', err));
