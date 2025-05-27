@@ -1,0 +1,35 @@
+@startuml Consultation Historique Staff
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface\nHistorique" as HistoryUI
+participant "MongoDB Atlas" as DB
+
+S -> HistoryUI : Accède à l'historique des réclamations
+activate HistoryUI
+
+HistoryUI -> DB : Charger réclamations "Done" depuis DB
+activate DB
+DB --> HistoryUI : Retourne liste réclamations "Done"
+deactivate DB
+
+alt Réclamations trouvées
+
+HistoryUI --> S : Afficher liste des réclamations terminées
+deactivate HistoryUI
+
+else Aucune réclamation
+
+HistoryUI --> S : Afficher message "Aucune réclamation dans cette catégorie"
+deactivate HistoryUI
+
+end
+
+@enduml 

@@ -1,0 +1,48 @@
+@startuml Création d'une Réclamation par le Staff
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    BoxBorderColor #2C3E50
+    BoxBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface\nCréation Réclamation" as CreateUI
+participant "MongoDB Atlas" as DB
+
+
+S -> CreateUI : Clique sur "Créer Réclamation"
+activate CreateUI
+
+CreateUI -> S : Afficher formulaire de création
+
+S -> CreateUI : Remplit le formulaire
+activate CreateUI
+
+S -> CreateUI : Clique sur "Soumettre"
+
+CreateUI -> CreateUI : Valider champs du formulaire
+
+alt Champs valides
+
+CreateUI -> DB : Enregistrer réclamation dans DB
+activate DB
+DB --> CreateUI : Confirmation enregistrement
+deactivate DB
+
+CreateUI --> S : Afficher message succès création
+CreateUI --> S : retour a la liste réclamations
+deactivate CreateUI
+
+else Champs non remplis ou invalides
+
+CreateUI --> S : Afficher message d'erreur validation
+deactivate CreateUI
+
+end
+
+@enduml 

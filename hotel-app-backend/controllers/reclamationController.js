@@ -42,27 +42,12 @@ exports.updateStatus = async (req, res) => {
       return res.status(404).json({ error: 'Réclamation non trouvée' });
     }
 
-    // Si assignedTo est "staff", l'utiliser directement
-    let assignedUserName = assignedTo;
-    if (assignedTo && assignedTo !== 'staff') {
-      try {
-        const user = await User.findById(assignedTo);
-        if (user) {
-          assignedUserName = user.name;
-        }
-      } catch (err) {
-        console.log('Erreur lors de la récupération de l\'utilisateur:', err);
-        // En cas d'erreur, utiliser la valeur d'origine
-        assignedUserName = assignedTo;
-      }
-    }
-
     // Mettre à jour la réclamation avec le statut et le nom de l'utilisateur assigné
     const updatedReclamation = await Reclamation.findByIdAndUpdate(
       id,
       { 
         status, 
-        assignedTo: assignedUserName, 
+        assignedTo, // Use the name directly since we're storing names in the reclamation
         updatedAt: new Date() 
       },
       { new: true }

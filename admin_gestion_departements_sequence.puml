@@ -1,0 +1,110 @@
+@startuml Gestion des Départements par l'Admin
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    BoxBorderColor #2C3E50
+    BoxBackgroundColor #ECF0F1
+}
+
+actor Admin as A
+participant "Interface\nGestion des Départements" as DeptUI
+
+== Consultation des Départements ==
+
+A -> DeptUI : Accède à l'interface gestion des départements
+activate DeptUI
+
+DeptUI -> DeptUI : Charger tous les départements
+
+DeptUI --> A : Afficher liste de tous les départements
+deactivate DeptUI
+
+== Recherche de Département par Nom ==
+
+A -> DeptUI : Saisit un nom et lance la recherche
+activate DeptUI
+
+DeptUI -> DeptUI : Chercher le département par nom
+
+alt Département trouvé
+
+DeptUI --> A : Afficher le département correspondant
+deactivate DeptUI
+
+else Nom introuvable
+
+DeptUI --> A : Afficher message "Nom introuvable"
+deactivate DeptUI
+
+end
+
+== Ajout d'un Département ==
+
+A -> DeptUI : Initie l'ajout d'un nouveau département
+activate DeptUI
+
+DeptUI -> DeptUI : Ouvrir formulaire d'ajout
+
+A -> DeptUI : Remplit formulaire et clique sur "Enregistrer"
+activate DeptUI
+
+DeptUI -> DeptUI : Valider champs du formulaire
+
+alt Champs valides
+
+DeptUI -> DeptUI : Ajouter le département
+DeptUI --> A : Afficher message succès ajout et\nmettre à jour liste
+deactivate DeptUI
+
+else Champs non remplis ou invalides
+
+DeptUI --> A : Afficher message d'erreur validation
+deactivate DeptUI
+
+end
+
+== Modification d'un Département ==
+
+A -> DeptUI : Sélectionne un département à modifier
+activate DeptUI
+
+DeptUI -> DeptUI : Ouvrir formulaire d'édition pré-rempli
+
+A -> DeptUI : Modifie les champs et clique sur "Enregistrer"
+activate DeptUI
+
+DeptUI -> DeptUI : Valider et mettre à jour département
+
+alt Champs valides
+
+DeptUI -> DeptUI : Mettre à jour le département
+DeptUI --> A : Afficher message succès modification et\nmettre à jour liste
+deactivate DeptUI
+
+else Champs non remplis ou invalides
+
+DeptUI --> A : Afficher message d'erreur validation
+deactivate DeptUI
+
+end
+
+== Suppression d'un Département ==
+
+A -> DeptUI : Sélectionne un département à supprimer
+activate DeptUI
+
+DeptUI -> DeptUI : Afficher confirmation de suppression (optionnel)
+
+A -> DeptUI : Confirme la suppression
+activate DeptUI
+
+DeptUI -> DeptUI : Supprimer département
+
+DeptUI --> A : Afficher message succès suppression et\nmettre à jour liste
+deactivate DeptUI
+
+@enduml 

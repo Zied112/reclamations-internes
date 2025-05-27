@@ -1,0 +1,34 @@
+@startuml
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface\nPrise en Charge" as HandleUI
+participant "MongoDB Atlas" as DB
+
+S -> HandleUI : Sélectionne réclamation en cours
+activate HandleUI
+
+S -> HandleUI : Clique sur "Marquer comme Terminé"
+activate HandleUI
+
+HandleUI -> DB : Mettre à jour statut réclamation dans DB
+activate DB
+DB --> HandleUI : Confirmation mise à jour statut
+deactivate DB
+
+HandleUI -> DB : Archiver/Transférer réclamation dans historique DB
+activate DB
+DB --> HandleUI : Confirmation archivage/transfert
+deactivate DB
+
+HandleUI --> S : Afficher confirmation et\nmise à jour interface
+deactivate HandleUI
+
+@enduml 

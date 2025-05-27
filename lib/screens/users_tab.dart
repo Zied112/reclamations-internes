@@ -387,7 +387,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   String _role = 'staff';
-  String _department = 'Housekeeping';
+  List<String> _selectedDepartments = [];
   final List<String> _roles = ['staff', 'manager'];
   final List<String> _departments = [
     'Housekeeping', 'Reception', 'Maintenance', 'Security',
@@ -401,7 +401,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _emailController = TextEditingController(text: widget.user?['email'] ?? '');
     _passwordController = TextEditingController();
     _role = widget.user?['role'] ?? 'staff';
-    _department = widget.user?['department'] ?? 'Housekeeping';
+    _selectedDepartments = widget.user?['departments'] != null 
+        ? List<String>.from(widget.user!['departments'])
+        : ['Housekeeping'];
   }
 
   @override
@@ -418,7 +420,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
       'name': _nameController.text,
       'email': _emailController.text,
       'role': _role,
-      'department': _department,
+      'departments': _selectedDepartments,
     };
     if (widget.user == null) {
       userData['password'] = _passwordController.text;
@@ -447,82 +449,127 @@ class _UserFormDialogState extends State<UserFormDialog> {
           color: Colors.blue.shade700,
         ),
       ),
-      content: Form(
-        key: _formKey,
+      content: Container(
+        width: MediaQuery.of(context).size.width * 0.8,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nom',
-                  border: OutlineInputBorder(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nom',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? 'Nom requis' : null,
+                ),
+                SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Email requis';
+                    if (!v.contains('@') || !v.contains('.')) return 'Email invalide';
+                    return null;
+                  },
+                ),
+                SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                  validator: (v) {
+                    if (widget.user == null && (v == null || v.isEmpty)) return 'Mot de passe requis';
+                    return null;
+                  },
+                ),
+                SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _role,
+                  items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                  onChanged: (v) => setState(() => _role = v!),
+                  decoration: InputDecoration(
+                    labelText: 'Rôle',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: Icon(Icons.work),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Nom requis' : null,
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.business, color: Colors.grey[600]),
+                            SizedBox(width: 8),
+                            Text(
+                              'Départements',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Divider(height: 1),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _departments.length,
+                          itemBuilder: (context, index) {
+                            final department = _departments[index];
+                            return CheckboxListTile(
+                              title: Text(department),
+                              value: _selectedDepartments.contains(department),
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  if (value == true) {
+                                    _selectedDepartments.add(department);
+                                  } else {
+                                    _selectedDepartments.remove(department);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  prefixIcon: Icon(Icons.email),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Email requis';
-                  if (!v.contains('@') || !v.contains('.')) return 'Email invalide';
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  prefixIcon: Icon(Icons.lock),
-                ),
-                obscureText: true,
-                validator: (v) {
-                  if (widget.user == null && (v == null || v.isEmpty)) return 'Mot de passe requis';
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _role,
-                items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                onChanged: (v) => setState(() => _role = v!),
-                decoration: InputDecoration(
-                  labelText: 'Rôle',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  prefixIcon: Icon(Icons.work),
-                ),
-              ),
-              SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _department,
-                items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                onChanged: (v) => setState(() => _department = v!),
-                decoration: InputDecoration(
-                  labelText: 'Département',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  prefixIcon: Icon(Icons.business),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

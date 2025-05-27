@@ -2,16 +2,33 @@ const User = require('../models/user');
 
 // Créer un nouvel utilisateur
 exports.createUser = async (req, res) => {
-  const { name, email, password, role, department } = req.body;
+  const { name, email, password, role, departments } = req.body;
 
-  console.log(req.body); // 🔍 voir ce que tu reçois
+  console.log(req.body);
 
   try {
-    const newUser = new User({ name, email, password, role, department });
+    // Validate required fields
+    if (!name || !email || !password || !departments || departments.length === 0) {
+      return res.status(400).json({ 
+        message: 'Tous les champs sont requis (nom, email, mot de passe, département)' 
+      });
+    }
+
+    // Use the first department as the primary department
+    const department = departments[0];
+
+    const newUser = new User({ 
+      name, 
+      email, 
+      password, 
+      role: role || 'staff',
+      department 
+    });
+    
     await newUser.save();
     res.status(201).json(newUser);
   } catch (error) {
-    console.error(error); // 🔍 log plus complet
+    console.error(error);
     res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur', error });
   }
 };

@@ -1,0 +1,28 @@
+@startuml Prise en Charge d'une Réclamation
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface Réclamations" as ReclaUI
+participant "MongoDB Atlas" as DB
+
+S -> ReclaUI : Clique sur "Prendre en Charge"
+activate ReclaUI
+
+ReclaUI -> DB : Mettre à jour statut réclamation dans DB
+activate DB
+DB --> ReclaUI : Confirmation mise à jour
+deactivate DB
+
+ReclaUI -> ReclaUI : Mettre à jour l'interface
+
+ReclaUI --> S : Afficher confirmation prise en charge
+deactivate ReclaUI
+
+@enduml 

@@ -1,0 +1,129 @@
+@startuml Système De Gestion de Réclamations Internes - Séquence
+
+actor Admin
+actor Staff
+
+participant "Interface Authentification" as AuthUI
+participant "Interface Admin" as AdminUI
+participant "Interface Staff" as StaffUI
+participant "Formulaire Réclamation" as ReclaForm
+participant "API Service" as APIService
+
+== Connexion ==
+Admin -> AuthUI : S'authentifier (identifiants)
+activate AuthUI
+Staff -> AuthUI : S'authentifier (identifiants)
+activate AuthUI
+AuthUI -> APIService : Vérifier identifiants
+activate APIService
+APIService --> AuthUI : Réponse (succès/échec, rôle)
+deactivate APIService
+
+alt Succès (Admin)
+  AuthUI --> AdminUI : Afficher tableau de bord Admin
+  activate AdminUI
+  deactivate AuthUI
+else Succès (Staff)
+  AuthUI --> StaffUI : Afficher tableau de bord Staff
+  activate StaffUI
+  deactivate AuthUI
+else Échec
+  AuthUI --> AuthUI : Afficher message d'erreur
+  deactivate AuthUI
+end
+
+== Actions Admin ==
+Admin -> AdminUI : Gérer les Staffs / Réclamations / Départements
+activate AdminUI
+AdminUI -> APIService : Demande de gestion (création, modification, suppression, lecture)
+activate APIService
+APIService --> AdminUI : Réponse (données/confirmation/erreur)
+deactivate APIService
+AdminUI --> Admin : Afficher résultat
+deactivate AdminUI
+
+Admin -> AdminUI : Voir Statistiques
+activate AdminUI
+AdminUI -> APIService : Demande statistiques
+activate APIService
+APIService --> AdminUI : Retourne données statistiques
+deactivate APIService
+AdminUI --> Admin : Afficher statistiques
+deactivate AdminUI
+
+== Actions Staff ==
+Staff -> StaffUI : Accéder au tableau de bord Staff
+activate StaffUI
+StaffUI -> APIService : Obtenir réclamations (Nouvelles/Personnelles/En cours/Historique)
+activate APIService
+APIService --> StaffUI : Retourne liste des réclamations
+deactivate APIService
+StaffUI --> Staff : Afficher réclamations
+deactivate StaffUI
+
+Staff -> StaffUI : Initier création réclamation
+activate StaffUI
+StaffUI -> ReclaForm : Ouvrir formulaire
+activate ReclaForm
+Staff -> ReclaForm : Remplir formulaire (objet, description, départements, priorité, etc.)
+
+alt Champs Valides
+  ReclaForm -> APIService : Soumettre nouvelle réclamation (création)
+  activate APIService
+  APIService --> ReclaForm : Confirmation / Nouvel ID
+  deactivate APIService
+  ReclaForm --> StaffUI : Confirmation et retour
+  deactivate ReclaForm
+  StaffUI --> Staff : Afficher message succès
+else Erreur Validation
+  ReclaForm --> Staff : Afficher message d'erreur validation
+  deactivate ReclaForm
+end
+
+Staff -> StaffUI : Sélectionner réclamation (Mes Réclamations)
+activate StaffUI
+StaffUI -> ReclaForm : Ouvrir formulaire édition (si New)
+activate ReclaForm
+Staff -> ReclaForm : Modifier champs
+
+alt Champs Valides
+  ReclaForm -> APIService : Soumettre modification de réclamation (modification)
+  activate APIService
+  APIService --> ReclaForm : Confirmation
+  deactivate APIService
+  ReclaForm --> StaffUI : Confirmation et retour
+  deactivate ReclaForm
+  StaffUI --> Staff : Afficher message succès modification
+else Erreur Validation
+  ReclaForm --> Staff : Afficher message d'erreur validation
+  deactivate ReclaForm
+end
+
+Staff -> StaffUI : Sélectionner réclamation (Mes Réclamations)
+activate StaffUI
+StaffUI -> APIService : Demander suppression de réclamation (si New)
+activate APIService
+APIService --> StaffUI : Confirmation / Échec
+deactivate APIService
+StaffUI --> Staff : Afficher message (succès/échec)
+deactivate StaffUI
+
+Staff -> StaffUI : Sélectionner réclamation (Nouvelles)
+activate StaffUI
+StaffUI -> APIService : Demander prise en charge de réclamation
+activate APIService
+APIService --> StaffUI : Confirmation / Échec
+deactivate APIService
+StaffUI --> Staff : Afficher message (succès/échec) et mettre à jour liste
+deactivate StaffUI
+
+Staff -> StaffUI : Sélectionner réclamation (Prises en charge)
+activate StaffUI
+StaffUI -> APIService : Demander de marquer réclamation comme terminée
+activate APIService
+APIService --> StaffUI : Confirmation / Échec
+deactivate APIService
+StaffUI --> Staff : Afficher message (succès/échec) et mettre à jour liste
+deactivate StaffUI
+
+@enduml 

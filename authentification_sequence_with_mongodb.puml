@@ -1,0 +1,28 @@
+    @startuml Authentification
+
+    actor Admin
+    actor Staff
+    participant "Interface Authentification" as Auth
+    participant "MongoDB Atlas" as DB
+
+    Admin -> Auth : S'authentifier
+    Staff -> Auth : S'authentifier
+
+    activate Auth
+
+    Auth -> DB : Vérifier identifiants
+    activate DB
+    DB --> Auth : Réponse vérification
+    deactivate DB
+
+    alt Succès (Admin)
+        Auth --> Admin : Afficher tableau de bord Admin
+    else if Succès (Staff)
+        Auth --> Staff : Afficher liste des réclamations
+    else Échec
+        Auth --> Auth : Afficher message d'erreur
+    end
+
+    deactivate Auth
+
+    @enduml 

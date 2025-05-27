@@ -1,0 +1,48 @@
+@startuml Consultation Statistiques Admin
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    BoxBorderColor #2C3E50
+    BoxBackgroundColor #ECF0F1
+}
+
+actor Admin as A
+participant "Tableau de Bord" as Dashboard
+participant "MongoDB" as DB
+
+A -> Dashboard : Accède au Tableau de Bord Statistiques
+activate Dashboard
+
+Dashboard -> DB : Requête données statistiques
+activate DB
+DB --> Dashboard : Retourne les données
+deactivate DB
+
+Dashboard -> Dashboard : Collecte les données statistiques
+
+
+Dashboard --> A : Afficher nombre de réclamations "Nouvelles"
+
+
+Dashboard --> A : Afficher nombre de réclamations "En cours"
+
+
+Dashboard --> A : Afficher nombre de réclamations "Terminées"
+
+
+Dashboard --> A : Afficher durée moyenne de résolution
+
+
+Dashboard --> A : Afficher graphique de pourcentage par statut
+
+
+Dashboard --> A : Afficher Top 3 départements performants
+
+
+deactivate Dashboard
+
+@enduml 

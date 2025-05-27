@@ -1,0 +1,125 @@
+@startuml Gestion des Profils par l'Admin
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    BoxBorderColor #2C3E50
+    BoxBackgroundColor #ECF0F1
+}
+
+actor Admin as A
+participant "Interface\nGestion des Profils" as ProfileUI
+participant "MongoDB Atlas" as DB
+
+
+A -> ProfileUI : Accède à l'interface gestion des profils
+activate ProfileUI
+
+ProfileUI -> DB : Charger tous les profils depuis DB
+activate DB
+DB --> ProfileUI : Retourne liste de tous les profils
+deactivate DB
+
+ProfileUI --> A : Afficher liste de tous les profils
+deactivate ProfileUI
+
+A -> ProfileUI : Saisit un nom et lance la recherche
+activate ProfileUI
+
+ProfileUI -> DB : Chercher le profil par nom dans DB
+activate DB
+DB --> ProfileUI : Retourne le profil
+deactivate DB
+
+alt Profil trouvé
+
+ProfileUI --> A : Afficher le profil correspondant
+deactivate ProfileUI
+
+else Nom introuvable
+
+ProfileUI --> A : Afficher message "Nom introuvable"
+deactivate ProfileUI
+
+end
+
+A -> ProfileUI : Sélectionne critères de filtrage (Rôle, Département)
+activate ProfileUI
+
+ProfileUI -> DB : Appliquer filtres dans DB
+activate DB
+DB --> ProfileUI : Retourne profils filtrés
+deactivate DB
+
+alt Résultats trouvés
+
+ProfileUI --> A : Afficher profils filtrés
+deactivate ProfileUI
+
+else Aucun résultat
+
+ProfileUI --> A : Afficher message d'erreur "Aucun profil trouvé"
+deactivate ProfileUI
+
+end
+
+A -> ProfileUI : Réinitialise filtres
+activate ProfileUI
+
+ProfileUI -> DB : Restaurer liste initiale depuis DB
+activate DB
+DB --> ProfileUI : Retourne liste initiale
+deactivate DB
+
+ProfileUI --> A : Afficher liste initiale
+deactivate ProfileUI
+
+
+A -> ProfileUI : Sélectionne un profil à modifier
+activate ProfileUI
+
+ProfileUI -> ProfileUI : Ouvrir formulaire d'édition pré-rempli
+
+A -> ProfileUI : Modifie les champs et clique sur "Enregistrer"
+activate ProfileUI
+
+ProfileUI -> ProfileUI : Valider champs du formulaire
+
+alt Champs valides
+
+ProfileUI -> DB : mettre à jour profil dans DB
+activate DB
+DB --> ProfileUI : Confirmation mise à jour
+deactivate DB
+
+ProfileUI --> A : Afficher message succès modification
+deactivate ProfileUI
+
+else Champs non remplis ou invalides
+
+ProfileUI --> A : Afficher message d'erreur 
+deactivate ProfileUI
+
+end
+
+
+A -> ProfileUI : Sélectionne un profil à supprimer
+activate ProfileUI
+
+ProfileUI -> ProfileUI : Afficher confirmation de suppression (optionnel)
+
+A -> ProfileUI : Confirme la suppression
+activate ProfileUI
+
+ProfileUI -> DB : Supprimer profil dans DB
+activate DB
+DB --> ProfileUI : Confirmation suppression
+deactivate DB
+
+ProfileUI --> A : Afficher message succès suppression et\nmettre à jour liste
+deactivate ProfileUI
+
+@enduml 

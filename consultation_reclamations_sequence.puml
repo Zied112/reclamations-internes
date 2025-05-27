@@ -1,0 +1,67 @@
+@startuml Consultation des Réclamations par le Staff
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface\nRéclamations" as UI
+participant "MongoDB Atlas" as DB
+
+
+S -> UI : Accède à l'interface réclamations
+activate UI
+
+UI -> DB : Charger réclamations "NEW" depuis DB
+activate DB
+DB --> UI : Retourne liste réclamations "NEW"
+deactivate DB
+
+
+UI --> S : Afficher liste réclamations
+deactivate UI
+
+
+S -> UI : Sélectionne critères de filtrage
+activate UI
+note right of UI
+  Critères possibles :
+  - Par priorité
+  - Par date
+end note
+
+UI -> DB : Appliquer filtres dans DB
+activate DB
+DB --> UI : Retourne réclamations filtrées
+deactivate DB
+
+
+alt Résultats trouvés
+
+UI --> S : Afficher réclamations filtrées
+deactivate UI
+
+else Aucun résultat
+
+UI --> S : Afficher message d'erreur "Aucune réclamation"
+deactivate UI
+
+end
+
+S -> UI : Réinitialise filtres
+activate UI
+
+UI -> DB : Charger liste initiale depuis DB
+activate DB
+DB --> UI : Retourne liste initiale
+deactivate DB
+
+
+UI --> S : Afficher liste initiale
+deactivate UI
+
+@enduml 

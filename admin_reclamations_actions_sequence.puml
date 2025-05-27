@@ -1,0 +1,115 @@
+@startuml Actions Admin sur Réclamations
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    BoxBorderColor #2C3E50
+    BoxBackgroundColor #ECF0F1
+}
+
+actor Admin as A
+participant "Interface\nAdmin" as AdminUI
+participant "MongoDB Atlas" as DB
+
+
+A -> AdminUI : Accède à la gestion des réclamations
+activate AdminUI
+
+AdminUI -> DB : Charger toutes les réclamations depuis DB
+activate DB
+DB --> AdminUI : Retourne liste de toutes les réclamations
+deactivate DB
+
+
+AdminUI --> A : Afficher liste de toutes les réclamations
+deactivate AdminUI
+
+
+
+A -> AdminUI : Sélectionne critères de filtrage
+activate AdminUI
+note right of AdminUI
+  Critères possibles :
+  - Par statut
+  - Par département
+  - Par priorité
+  - Par date
+end note
+
+AdminUI -> DB : Appliquer filtres dans DB
+activate DB
+DB --> AdminUI : Retourne réclamations filtrées
+deactivate DB
+
+
+alt Résultats trouvés
+
+AdminUI --> A : Afficher réclamations filtrées
+deactivate AdminUI
+
+else Aucun résultat
+
+AdminUI --> A : Afficher message d'erreur "Aucune réclamation"
+deactivate AdminUI
+
+end
+
+A -> AdminUI : Réinitialise filtres
+activate AdminUI
+
+AdminUI -> AdminUI : Restaurer liste initiale
+
+
+AdminUI --> A : Afficher liste initiale
+deactivate AdminUI
+
+
+A -> AdminUI : Sélectionne une réclamation à modifier
+activate AdminUI
+
+AdminUI -> AdminUI : Ouvrir formulaire d'édition pré-rempli
+
+
+A -> AdminUI : Modifie les champs et clique sur "Enregistrer"
+activate AdminUI
+
+AdminUI -> DB : Valider et mettre à jour réclamation dans DB
+activate DB
+DB --> AdminUI : Confirmation mise à jour
+deactivate DB
+
+
+alt Champs valides
+
+AdminUI --> A : Afficher message succès modification et\nmettre à jour liste
+deactivate AdminUI
+
+else Champs non remplis ou invalides
+
+AdminUI --> A : Afficher message d'erreur validation\n(ex: "Veuillez remplir tous les champs requis")
+deactivate AdminUI
+
+end
+
+
+A -> AdminUI : Sélectionne une réclamation à supprimer
+activate AdminUI
+
+AdminUI -> AdminUI : Afficher confirmation de suppression (optionnel)
+
+A -> AdminUI : Confirme la suppression
+activate AdminUI
+
+AdminUI -> DB : Supprimer réclamation dans DB
+activate DB
+DB --> AdminUI : Confirmation suppression
+deactivate DB
+
+
+AdminUI --> A : Afficher message succès suppression et\nmettre à jour liste
+deactivate AdminUI
+
+@enduml 

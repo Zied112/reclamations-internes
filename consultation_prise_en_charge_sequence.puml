@@ -1,0 +1,39 @@
+@startuml
+
+skinparam sequence {
+    ArrowColor #2C3E50
+    ActorBorderColor #2C3E50
+    LifeLineBorderColor #2C3E50
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+}
+
+actor Staff as S
+participant "Interface\nPrise en Charge" as HandleUI
+participant "MongoDB Atlas" as DB
+
+
+S -> HandleUI : Accède à l'interface prise en charge
+activate HandleUI
+
+HandleUI -> DB : Charger réclamations "IN_PROGRESS" depuis DB
+activate DB
+DB --> HandleUI : Retourne liste réclamations "IN_PROGRESS"
+deactivate DB
+
+alt Réclamations trouvées
+
+HandleUI --> S : Afficher liste réclamations prises en charge
+deactivate HandleUI
+
+else Aucune réclamation
+
+HandleUI --> S : Afficher message "Aucune réclamation dans cette catégorie"
+deactivate HandleUI
+
+end
+
+
+
+
+@enduml 
